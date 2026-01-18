@@ -1,0 +1,46 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        update_cache: yes
+    
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install Docker compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Copy backend code
+      synchronize:
+        src: ../app/
+        dest: /opt/app/
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.github"
+          - "--exclude=node_modules"
+
+    - name: Copy docker compose files
+      copy:
+        src: ../docker-compose/
+        dest: /opt/monitoring/
+
+    - name: Start monitoring stack
+      command: docker-compose up -d
+      args:
+        chdir: /opt/monitoring 

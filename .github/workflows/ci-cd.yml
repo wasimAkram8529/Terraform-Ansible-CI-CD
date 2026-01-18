@@ -1,0 +1,123 @@
+name: Terraform + Ansible CI/CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan (CI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: terraform
+      
+      - name: Terraform Plan (Readable)
+        run: terraform show -no-color tfplan
+        working-directory: terraform
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+
+  manual-approval:
+    name: Manual Approval
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    environment:
+      name: production   
+
+    steps:
+      - name: Await approval
+        run: echo "Waiting for approval..."
+
+  terraform-apply:
+    name: Terraform Apply (CD)
+    needs: manual-approval
+    runs-on: ubuntu-latest
+    environment:
+      name: production 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+
+      - name: Terraform Apply Approved Plan
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform
+      
+  ansible-configure:
+    name: Configure with Ansible
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/Ansible_key.pem
+          chmod 600 ~/.ssh/Ansible_key.pem
+
+      - name: Set Ansible environment vars
+        run: |
+          echo "ANSIBLE_USER=${{ secrets.ANSIBLE_USER }}" >> $GITHUB_ENV
+          echo "ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/key.pem" >> $GITHUB_ENV
+
+      - name: Run Ansible Playbook
+        run: |
+          cd ansible
+          ansible-playbook -i inventory.py site.yml

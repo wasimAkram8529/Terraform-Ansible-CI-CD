@@ -1,0 +1,9 @@
+terraform-remote-backend/*
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+
+app/node_modules/
+
+.env
