@@ -115,7 +115,7 @@ jobs:
       - name: Set Ansible environment vars
         run: |
           echo "ANSIBLE_USER=${{ secrets.ANSIBLE_USER }}" >> $GITHUB_ENV
-          echo "ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/key.pem" >> $GITHUB_ENV
+          echo "ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/Ansible_key.pem" >> $GITHUB_ENV
 
       - name: Run Ansible Playbook
         run: |
