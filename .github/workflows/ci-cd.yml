@@ -111,6 +111,9 @@ jobs:
           sudo apt update
           sudo apt install -y ansible
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh

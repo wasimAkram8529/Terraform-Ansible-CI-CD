@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
 
 import subprocess
 import json
 import sys
+import os
 
 def terraform_output():
     try:
@@ -27,8 +27,11 @@ inventory = {
     "all": {
         "hosts": [public_ip],
         "vars": {
-            "ansible_user": "ubuntu",
-            "ansible_ssh_private_key_file": "~/.ssh/Ansible_key.pem",
+            "ansible_user": os.getenv("ANSIBLE_USER", "ubuntu"),
+            "ansible_ssh_private_key_file": os.getenv(
+                "ANSIBLE_PRIVATE_KEY_FILE",
+                "~/.ssh/id_rsa"
+            ),
             "ansible_ssh_common_args": "-o StrictHostKeyChecking=no"
         }
     }
